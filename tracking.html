@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>تتبع المندوبين - نسخة مبسطة</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 24px;
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        input {
+            border: 1px solid #ddd;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .info {
+            background: #f0f0f0;
+            padding: 12px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .timer {
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📍 نظام تتبع المندوبين</h1>
+    
+    <input type="text" id="name" placeholder="👤 اسم المندوب">
+    
+    <div id="status" class="info warning">⏳ اضغط على زر "طلب الموقع"</div>
+    
+    <button id="requestBtn" style="background:#ff9800" onclick="requestLocation()">
+        📍 طلب الموقع (اضغط هنا أولاً)
+    </button>
+    
+    <button id="startBtn" style="display:none" onclick="startTracking()">
+        ▶️ بدء التتبع
+    </button>
+    
+    <button id="stopBtn" style="display:none" style="background:#dc3545" onclick="stopTracking()">
+        ⏹️ إيقاف التتبع
+    </button>
+    
+    <div id="timerDiv" class="timer"></div>
+</div>
+
+<script>
+    // 🔴 ضع رابط API الخاص بك هنا
+    const API_URL = "https://script.google.com/macros/s/AKfycbxC-3FI2LzjYA_-Xx6WJZ8XnswWOqQy8Q5wJ2kTd_rJ/exec";
+    
+    let trackingInterval = null;
+    let timerInterval = null;
+    let secondsRemaining = 0;
+    let hasLocation = false;
+    let currentLat = null;
+    let currentLng = null;
+    
+    function requestLocation() {
+        const statusDiv = document.getElementById('status');
+        statusDiv.className = "info";
+        statusDiv.innerHTML = "📡 جاري طلب الموقع...";
+        
+        if (!navigator.geolocation) {
+            statusDiv.className = "info error";
+            statusDiv.innerHTML = "❌ متصفحك لا يدعم تحديد الموقع";
+            return;
+        }
+        
+        // طريقة مبسطة لطلب الموقع
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                // نجح
+                hasLocation = true;
+                currentLat = position.coords.latitude;
+                currentLng = position.coords.longitude;
+                
+                statusDiv.className = "info success";
+                statusDiv.innerHTML = `✅ تم تحديد موقعك بنجاح!<br>📍 ${currentLat}, ${currentLng}<br>📏 الدقة: ${position.coords.accuracy}m`;
+                
+                document.getElementById('requestBtn').style.display = 'none';
+                document.getElementById('startBtn').style.display = 'block';
+            },
+            function(error) {
+                // فشل
+                let errorMsg = "";
+                switch(error.code) {
+                    case 1:
+                        errorMsg = "❌ تم رفض الوصول. الرجاء اتباع التعليمات: اضغط على أيقونة 🔒 في شريط العنوان ← اختر 'الموقع' ← 'السماح' ← ثم أعد تحميل الصفحة واضغط 'طلب الموقع' مرة أخرى.";
+                        break;
+                    case 2:
+                        errorMsg = "❌ الموقع غير متوفر. تأكد من تشغيل GPS على جوالك.";
+                        break;
+                    case 3:
+                        errorMsg = "❌ انتهت المهلة. حاول مرة أخرى في مكان مفتوح.";
+                        break;
+                    default:
+                        errorMsg = "❌ خطأ: " + error.message;
+                }
+                
+                statusDiv.className = "info error";
+                statusDiv.innerHTML = errorMsg;
+                hasLocation = false;
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 30000,
+                maximumAge: 0
+            }
+        );
+    }
+    
+    async function sendLocation() {
+        const name = document.getElementById('name').value.trim();
+        if (!name) {
+            alert("الرجاء إدخال اسم المندوب");
+            return false;
+        }
+        
+        if (!hasLocation) {
+            alert("الرجاء الضغط على 'طلب الموقع' أولاً");
+            return false;
+        }
+        
+        try {
+            const url = `${API_URL}?action=save&name=${encodeURIComponent(name)}&lat=${currentLat}&lng=${currentLng}`;
+            const response = await fetch(url);
+            const result = await response.json();
+            
+            if (result.status === "ok") {
+                document.getElementById('status').innerHTML = `✅ تم إرسال موقعك:<br>📍 ${currentLat}, ${currentLng}<br>⏱️ ${new Date().toLocaleTimeString()}`;
+                document.getElementById('status').className = "info success";
+                return true;
+            } else {
+                document.getElementById('status').innerHTML = `❌ خطأ: ${result.msg}`;
+                document.getElementById('status').className = "info error";
+                return false;
+            }
+        } catch(e) {
+            document.getElementById('status').innerHTML = `❌ خطأ في الإرسال: ${e.message}`;
+            document.getElementById('status').className = "info error";
+            return false;
+        }
+    }
+    
+    function startTracking() {
+        const name = document.getElementById('name').value.trim();
+        if (!name) {
+            alert("اكتب اسم المندوب أولاً");
+            return;
+        }
+        
+        if (!hasLocation) {
+            alert("الرجاء الضغط على 'طلب الموقع' أولاً");
+            return;
+        }
+        
+        sendLocation();
+        
+        trackingInterval = setInterval(() => {
+            sendLocation();
+        }, 30000);
+        
+        secondsRemaining = 30;
+        updateTimer();
+        timerInterval = setInterval(() => {
+            if (secondsRemaining > 0) {
+                secondsRemaining--;
+                updateTimer();
+            } else {
+                secondsRemaining = 30;
+            }
+        }, 1000);
+        
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'block';
+        document.getElementById('requestBtn').style.display = 'none';
+    }
+    
+    function updateTimer() {
+        document.getElementById('timerDiv').innerHTML = `⏱️ التحديث التالي بعد: ${secondsRemaining} ثانية`;
+    }
+    
+    function stopTracking() {
+        if (trackingInterval) clearInterval(trackingInterval);
+        if (timerInterval) clearInterval(timerInterval);
+        
+        document.getElementById('startBtn').style.display = 'block';
+        document.getElementById('stopBtn').style.display = 'none';
+        document.getElementById('timerDiv').innerHTML = "";
+        document.getElementById('status').innerHTML = "⏸️ تم إيقاف التتبع";
+    }
+</script>
+</body>
+</html>
