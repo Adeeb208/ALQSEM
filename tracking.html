@@ -2,18 +2,21 @@
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>تتبع المندوبين - نسخة مبسطة</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تتبع مندوبي - النسخة النهائية</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            padding: 20px;
+            margin: 0;
         }
         .container {
             max-width: 400px;
             margin: 0 auto;
+        }
+        .card {
             background: white;
             border-radius: 20px;
             padding: 20px;
@@ -22,6 +25,7 @@
         h1 {
             text-align: center;
             color: #333;
+            margin-bottom: 20px;
             font-size: 24px;
         }
         input, button {
@@ -30,6 +34,7 @@
             margin: 10px 0;
             border-radius: 10px;
             font-size: 16px;
+            box-sizing: border-box;
         }
         input {
             border: 1px solid #ddd;
@@ -42,14 +47,21 @@
             cursor: pointer;
         }
         button:hover {
-            background: #45a049;
+            opacity: 0.9;
+        }
+        .btn-request {
+            background: #ff9800;
+        }
+        .btn-stop {
+            background: #dc3545;
         }
         .info {
-            background: #f0f0f0;
+            background: #f8f9fa;
             padding: 12px;
             border-radius: 10px;
             margin: 10px 0;
-            text-align: center;
+            font-size: 14px;
+            word-break: break-all;
         }
         .success {
             background: #d4edda;
@@ -73,30 +85,33 @@
 </head>
 <body>
 <div class="container">
-    <h1>📍 نظام تتبع المندوبين</h1>
-    
-    <input type="text" id="name" placeholder="👤 اسم المندوب">
-    
-    <div id="status" class="info warning">⏳ اضغط على زر "طلب الموقع"</div>
-    
-    <button id="requestBtn" style="background:#ff9800" onclick="requestLocation()">
-        📍 طلب الموقع (اضغط هنا أولاً)
-    </button>
-    
-    <button id="startBtn" style="display:none" onclick="startTracking()">
-        ▶️ بدء التتبع
-    </button>
-    
-    <button id="stopBtn" style="display:none" style="background:#dc3545" onclick="stopTracking()">
-        ⏹️ إيقاف التتبع
-    </button>
-    
-    <div id="timerDiv" class="timer"></div>
+    <div class="card">
+        <h1>📍 نظام تتبع المندوبين</h1>
+        
+        <input type="text" id="name" placeholder="👤 اسم المندوب">
+        
+        <div id="status" class="info warning">⏳ اضغط على زر "طلب الموقع"</div>
+        
+        <button id="requestBtn" class="btn-request" onclick="requestLocation()">
+            📍 طلب الموقع
+        </button>
+        
+        <button id="startBtn" style="display:none" onclick="startTracking()">
+            ▶️ بدء التتبع
+        </button>
+        
+        <button id="stopBtn" class="btn-stop" style="display:none" onclick="stopTracking()">
+            ⏹️ إيقاف التتبع
+        </button>
+        
+        <div id="timerDiv" class="timer"></div>
+    </div>
 </div>
 
 <script>
-    // 🔴 ضع رابط API الخاص بك هنا
-    const API_URL = "https://script.google.com/macros/s/AKfycbxC-3FI2LzjYA_-Xx6WJZ8XnswWOqQy8Q5wJ2kTd_rJ/exec";
+    // 🔴 ضع رابط Google Sheets الخاص بك هنا
+    // اذهب إلى ملف Google Sheets → مشاركة → انسخ الرابط
+    const GOOGLE_SHEETS_URL = "https://docs.google.com/spreadsheets/d/معرّف_جدول_البيانات/edit";
     
     let trackingInterval = null;
     let timerInterval = null;
@@ -104,6 +119,8 @@
     let hasLocation = false;
     let currentLat = null;
     let currentLng = null;
+    let currentAccuracy = null;
+    let currentBattery = null;
     
     function requestLocation() {
         const statusDiv = document.getElementById('status');
@@ -116,26 +133,24 @@
             return;
         }
         
-        // طريقة مبسطة لطلب الموقع
         navigator.geolocation.getCurrentPosition(
             function(position) {
-                // نجح
                 hasLocation = true;
                 currentLat = position.coords.latitude;
                 currentLng = position.coords.longitude;
+                currentAccuracy = position.coords.accuracy;
                 
                 statusDiv.className = "info success";
-                statusDiv.innerHTML = `✅ تم تحديد موقعك بنجاح!<br>📍 ${currentLat}, ${currentLng}<br>📏 الدقة: ${position.coords.accuracy}m`;
+                statusDiv.innerHTML = `✅ تم تحديد موقعك بنجاح!<br>📍 ${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}<br>📏 الدقة: ${Math.round(currentAccuracy)} متر`;
                 
                 document.getElementById('requestBtn').style.display = 'none';
                 document.getElementById('startBtn').style.display = 'block';
             },
             function(error) {
-                // فشل
                 let errorMsg = "";
                 switch(error.code) {
                     case 1:
-                        errorMsg = "❌ تم رفض الوصول. الرجاء اتباع التعليمات: اضغط على أيقونة 🔒 في شريط العنوان ← اختر 'الموقع' ← 'السماح' ← ثم أعد تحميل الصفحة واضغط 'طلب الموقع' مرة أخرى.";
+                        errorMsg = "❌ تم رفض الوصول إلى الموقع. الرجاء اتباع التعليمات: اضغط على أيقونة 🔒 في شريط العنوان → اختر 'الموقع' → 'السماح' → ثم أعد تحميل الصفحة.";
                         break;
                     case 2:
                         errorMsg = "❌ الموقع غير متوفر. تأكد من تشغيل GPS على جوالك.";
@@ -144,9 +159,8 @@
                         errorMsg = "❌ انتهت المهلة. حاول مرة أخرى في مكان مفتوح.";
                         break;
                     default:
-                        errorMsg = "❌ خطأ: " + error.message;
+                        errorMsg = "❌ خطأ غير معروف: " + error.message;
                 }
-                
                 statusDiv.className = "info error";
                 statusDiv.innerHTML = errorMsg;
                 hasLocation = false;
@@ -159,7 +173,19 @@
         );
     }
     
-    async function sendLocation() {
+    async function getBattery() {
+        if('getBattery' in navigator) {
+            try {
+                const battery = await navigator.getBattery();
+                return Math.round(battery.level * 100) + '%';
+            } catch(e) {
+                return 'غير معروف';
+            }
+        }
+        return 'غير معروف';
+    }
+    
+    async function sendToGoogleSheets() {
         const name = document.getElementById('name').value.trim();
         if (!name) {
             alert("الرجاء إدخال اسم المندوب");
@@ -171,25 +197,66 @@
             return false;
         }
         
-        try {
-            const url = `${API_URL}?action=save&name=${encodeURIComponent(name)}&lat=${currentLat}&lng=${currentLng}`;
-            const response = await fetch(url);
-            const result = await response.json();
-            
-            if (result.status === "ok") {
-                document.getElementById('status').innerHTML = `✅ تم إرسال موقعك:<br>📍 ${currentLat}, ${currentLng}<br>⏱️ ${new Date().toLocaleTimeString()}`;
-                document.getElementById('status').className = "info success";
-                return true;
-            } else {
-                document.getElementById('status').innerHTML = `❌ خطأ: ${result.msg}`;
-                document.getElementById('status').className = "info error";
-                return false;
+        const battery = await getBattery();
+        const now = new Date();
+        const timeStr = now.toLocaleString('ar-EG');
+        
+        // إنشاء رابط لفتح Google Forms أو إرسال بريد إلكتروني
+        // بدلاً من API المعقد، سنستخدم طريقة بسيطة: فتح رابط لتسجيل البيانات
+        
+        const sheetUrl = `${GOOGLE_SHEETS_URL}?entry.الوقت=${encodeURIComponent(timeStr)}&entry.المندوب=${encodeURIComponent(name)}&entry.خط_العرض=${currentLat}&entry.خط_الطول=${currentLng}`;
+        
+        // طريقة بديلة: حفظ البيانات في localStorage مؤقتاً
+        const data = {
+            time: timeStr,
+            name: name,
+            lat: currentLat,
+            lng: currentLng,
+            accuracy: currentAccuracy,
+            battery: battery
+        };
+        
+        // حفظ في localStorage
+        let savedData = localStorage.getItem('trackingData');
+        savedData = savedData ? JSON.parse(savedData) : [];
+        savedData.push(data);
+        localStorage.setItem('trackingData', JSON.stringify(savedData));
+        
+        document.getElementById('status').innerHTML = `✅ تم حفظ موقعك محلياً<br>📍 ${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}<br>🔋 البطارية: ${battery}<br>⏱️ ${timeStr}`;
+        document.getElementById('status').className = "info success";
+        
+        // عرض رابط لتصدير البيانات
+        if (savedData.length > 0) {
+            const exportBtn = document.createElement('button');
+            exportBtn.innerHTML = "📥 تصدير البيانات";
+            exportBtn.style.background = "#2196F3";
+            exportBtn.onclick = exportData;
+            if (!document.getElementById('exportBtn')) {
+                exportBtn.id = 'exportBtn';
+                document.querySelector('.card').appendChild(exportBtn);
             }
-        } catch(e) {
-            document.getElementById('status').innerHTML = `❌ خطأ في الإرسال: ${e.message}`;
-            document.getElementById('status').className = "info error";
-            return false;
         }
+        
+        return true;
+    }
+    
+    function exportData() {
+        const savedData = localStorage.getItem('trackingData');
+        if (!savedData) return;
+        
+        const data = JSON.parse(savedData);
+        let csv = "الوقت,المندوب,خط العرض,خط الطول,الدقة,البطارية\n";
+        data.forEach(row => {
+            csv += `"${row.time}","${row.name}",${row.lat},${row.lng},${row.accuracy},"${row.battery}"\n`;
+        });
+        
+        const blob = new Blob([csv], {type: 'text/csv'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'تتبع_المندوبين.csv';
+        a.click();
+        URL.revokeObjectURL(url);
     }
     
     function startTracking() {
@@ -204,38 +271,41 @@
             return;
         }
         
-        sendLocation();
+        sendToGoogleSheets();
         
         trackingInterval = setInterval(() => {
-            sendLocation();
+            sendToGoogleSheets();
         }, 30000);
         
         secondsRemaining = 30;
-        updateTimer();
         timerInterval = setInterval(() => {
-            if (secondsRemaining > 0) {
+            if(secondsRemaining > 0) {
                 secondsRemaining--;
-                updateTimer();
+                document.getElementById('timerDiv').innerHTML = `⏱️ التحديث التالي بعد: ${secondsRemaining} ثانية`;
             } else {
                 secondsRemaining = 30;
             }
         }, 1000);
         
-        document.getElementById('startBtn').style.display = 'none';
-        document.getElementById('stopBtn').style.display = 'block';
-        document.getElementById('requestBtn').style.display = 'none';
-    }
-    
-    function updateTimer() {
-        document.getElementById('timerDiv').innerHTML = `⏱️ التحديث التالي بعد: ${secondsRemaining} ثانية`;
+        document.getElementById('statusDiv').className = "info success";
+        document.getElementById('startBtn').style.display = "none";
+        document.getElementById('stopBtn').style.display = "block";
+        document.getElementById('name').disabled = true;
     }
     
     function stopTracking() {
-        if (trackingInterval) clearInterval(trackingInterval);
-        if (timerInterval) clearInterval(timerInterval);
+        if(trackingInterval) {
+            clearInterval(trackingInterval);
+            trackingInterval = null;
+        }
+        if(timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
         
-        document.getElementById('startBtn').style.display = 'block';
-        document.getElementById('stopBtn').style.display = 'none';
+        document.getElementById('startBtn').style.display = "block";
+        document.getElementById('stopBtn').style.display = "none";
+        document.getElementById('name').disabled = false;
         document.getElementById('timerDiv').innerHTML = "";
         document.getElementById('status').innerHTML = "⏸️ تم إيقاف التتبع";
     }
